@@ -40,19 +40,14 @@ All traffic goes through Caido, so it appears in the UI for further analysis.
 
 1. Open [Dashboard -> Developer -> Personal Access Tokens](https://docs.caido.io/dashboard/guides/create_pat.html)
 2. Create a new token
-3. Resolve the client path relative to this skill directory, then run setup:
+3. Run setup from the installed skill directory:
 
 ```bash
-# From this repository root
-export CAIDO_CLIENT="$PWD/skills/caido-mode/vendor/caido-headless-client/caido-client.mjs"
-
-# From an installed skill directory such as ~/.codex/skills/caido-mode
-export CAIDO_CLIENT="$PWD/vendor/caido-headless-client/caido-client.mjs"
-
-node "$CAIDO_CLIENT" setup <your-pat> --no-save-pat
+cd ~/.codex/skills/caido-mode
+node client/caido-client.mjs setup <your-pat> <caido-url> --no-save-pat
 
 # Non-default Caido instance
-node "$CAIDO_CLIENT" setup <pat> http://192.168.1.100:8080 --no-save-pat
+node client/caido-client.mjs setup <pat> http://192.168.1.100:8080 --no-save-pat
 
 # Or set env var instead
 export CAIDO_PAT=caido_xxxxx
@@ -63,7 +58,7 @@ The `setup` command starts Caido's device-code flow, auto-approves it with the P
 ### Check Status
 
 ```bash
-node "$CAIDO_CLIENT" auth-status
+node client/caido-client.mjs auth-status
 ```
 
 ### How Auth Works
@@ -74,12 +69,12 @@ Auth resolution: `CAIDO_ACCESS_TOKEN` env var -> valid cached access token -> re
 
 ## CLI Tool
 
-Use the `caido-headless-client` submodule located under `vendor/caido-headless-client`. In this repository, run `node skills/caido-mode/vendor/caido-headless-client/caido-client.mjs ...`; from an installed Codex or Claude skill directory, run `node "$CAIDO_CLIENT" ...`. All commands output JSON.
+Use the `caido-headless-client` submodule located at `client/` inside this skill. From an installed Codex or Claude skill directory, run `node client/caido-client.mjs ...`. In this repository, run `node skills/caido-mode/client/caido-client.mjs ...`. All commands output JSON.
 
-If `$CAIDO_CLIENT` is not already set, resolve it before running examples:
+For the examples below, set a short path once:
 
 ```bash
-export CAIDO_CLIENT="$PWD/vendor/caido-headless-client/caido-client.mjs"
+export CAIDO_CLIENT="$PWD/client/caido-client.mjs"
 ```
 
 ---
@@ -524,9 +519,9 @@ req.path.ncont:"/health" AND req.path.ncont:"/metrics"
 This CLI is a single Node ESM entrypoint with no npm dependencies:
 
 ```
-vendor/caido-headless-client/caido-client.mjs  # Auth flow, GraphQL/REST transport, command dispatch, output formatting
-vendor/caido-headless-client/package.json      # Script metadata only; no dependencies
-vendor/caido-headless-client/README.md
+client/caido-client.mjs  # Auth flow, GraphQL/REST transport, command dispatch, output formatting
+client/package.json      # Script metadata only; no dependencies
+client/README.md
 SKILL.md
 ```
 

@@ -5,7 +5,7 @@ Codex and Claude skills for controlling Caido through a pinned dependency-free c
 This repository does not include npm dependencies. The Caido client is pinned as a git submodule:
 
 ```text
-skills/caido-mode/vendor/caido-headless-client
+skills/caido-mode/client
 ```
 
 ## Included Skills
@@ -50,22 +50,21 @@ From an installed skill directory:
 
 ```bash
 cd ~/.codex/skills/caido-mode
-export CAIDO_CLIENT="$PWD/vendor/caido-headless-client/caido-client.mjs"
-node "$CAIDO_CLIENT" setup <pat> <caido-url> --no-save-pat
-node "$CAIDO_CLIENT" auth-status
+node client/caido-client.mjs setup <pat> <caido-url> --no-save-pat
+node client/caido-client.mjs auth-status
 ```
 
 For a local Caido instance:
 
 ```bash
-node "$CAIDO_CLIENT" setup <pat> http://localhost:8080 --no-save-pat
+node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 ```
 
 ## Updating The Client Pin
 
 ```bash
-git submodule update --remote skills/caido-mode/vendor/caido-headless-client
-git add .gitmodules skills/caido-mode/vendor/caido-headless-client
+git submodule update --remote skills/caido-mode/client
+git add .gitmodules skills/caido-mode/client
 git commit -m "Update caido-headless-client"
 ```
 
