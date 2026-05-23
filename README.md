@@ -12,6 +12,8 @@ skills/caido-mode/client
 
 - `caido-mode` - Search HTTP history, retrieve responses, byte-safe downloads, replay/edit requests, manage scopes/filters/environments/findings, control intercept, inspect plugins, and run Automate tasks through Caido.
 
+See `skills/caido-mode/README.md` for the human-facing command guide. Agents should use `skills/caido-mode/SKILL.md` for the full workflow and operational context.
+
 ## Clone
 
 ```bash
@@ -50,6 +52,7 @@ From an installed skill directory:
 
 ```bash
 cd ~/.codex/skills/caido-mode
+# Claude Code users: cd ~/.claude/skills/caido-mode
 node client/caido-client.mjs setup <pat> <caido-url> --no-save-pat
 node client/caido-client.mjs auth-status
 ```
