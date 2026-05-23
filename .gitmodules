@@ -1,0 +1,3 @@
+[submodule "skills/caido-mode/vendor/caido-headless-client"]
+	path = skills/caido-mode/vendor/caido-headless-client
+	url = https://github.com/kofersen/caido-headless-client.git

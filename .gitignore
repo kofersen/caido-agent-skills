@@ -1,0 +1,8 @@
+.env
+.env.*
+*.log
+*.tmp
+*.bin
+*.raw
+*.http
+secrets.json
