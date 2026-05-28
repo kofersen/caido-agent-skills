@@ -20,9 +20,17 @@ Cookies, JWTs, CSRF tokens, and other auth headers are often too large and fragi
 
 ## Requirements
 
-- Node.js 24 or newer
+- Node.js 24 or newer (Node 22.4+ also works; older Node requires the optional `ws` fallback below)
 - A running Caido instance
 - A Caido Personal Access Token for first-time setup
+
+### WebSocket fallback for older Node
+
+The client uses Node's built-in global `WebSocket`, which is enabled by default in Node 22.4+. On older runtimes you'll see `Global WebSocket is not available...`. To fix without upgrading Node, install the optional `ws` package inside the client directory — it's auto-detected at runtime and adds no required dependency to the skill:
+
+```bash
+cd skills/caido-mode/client && npm install ws
+```
 
 ## Setup
 
