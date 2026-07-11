@@ -10,6 +10,10 @@ client/caido-client.mjs
 
 No `npm install` is required.
 
+## Upstream parity
+
+This skill mirrors Caido's official [`caido/skills`](https://github.com/caido/skills) `caido-mode` (v3.0.1) — same commands, same flags, and the same `~/.claude/config/secrets.json` format, so the two are interchangeable. The only structural difference is the implementation: the official client is built on the `@caido/sdk-client` npm package, while this one is a single dependency-free `.mjs`. On top of full parity it adds byte-safe `download`, short aliases, `--no-save-pat`, and refresh-token rotation. The embedded GraphQL is verified current against [`caido/sdk-js`](https://github.com/caido/sdk-js) for Caido v0.57.1.
+
 ## Why
 
 Cookies, JWTs, CSRF tokens, and other auth headers are often too large and fragile to copy by hand. The normal workflow is:
