@@ -28,6 +28,8 @@ Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-
 | Repeating one request | `edit --values` sends one per value in a single session, a row each, stopping on backoff | one invocation per value |
 | Rate discipline | `--delay` paces sends per host across processes; 429, challenge, 503 and `Retry-After` are reported as `backoff` | no pacing, no backoff signal |
 | Scope | `search --scope` filters history by a Caido scope | not exposed |
+| Coverage | `sitemap` gives Caido's deduplicated tree of what has been seen on a host | not exposed |
+| WebSocket | `streams` and `stream-messages` read WS and SSE traffic, which `search` cannot see | not exposed |
 | Proxy rewrites | `rules` lists match-and-replace; every request and response reports `alteration` and `edited` | neither is exposed, so a rule's effect reads as the target's behaviour |
 | Expired access token | refresh token is stored, rotated on the first auth failure, and the call retried | refresh token is never stored; the run exits telling you to re-run `setup <pat>` |
 | PAT on disk | `setup --no-save-pat` keeps it out of `secrets.json` | `setup` always writes the PAT |
@@ -84,6 +86,7 @@ node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 |----------|----------|
 | HTTP History | `search` (with `--scope`), `recent`, `get`, `get-response`, `download`, `export-curl` |
 | Analysis & Evidence | `compare`, `evidence` |
+| Structure & Streams | `sitemap`, `streams`, `stream-messages` |
 | Edit & Replay | `edit` (with `--values` for batch sends), `replay`, `send-raw`, `edit-session` |
 | Replay Tab Lookup | `get-session`, `replay-entries`, `session-entries` |
 | Sessions | `create-session`, `rename-session`, `move-session`, `replay-sessions`, `delete-sessions` |
@@ -115,6 +118,10 @@ Verified against the live schema on 2026-07-30, recorded so it is not re-researc
   `interceptEntries` is intercept *history*, which `search 'source:"intercept"'` already covers.
 - **Response screenshots** (`renderRequest` → an `Image`) fail with `RENDER_FAILED / INTERNAL`
   on this host even with Caido's browser installed, so nothing was built on top of it.
+- **Testing a rule** (`testTamperRule`) takes a raw message plus the rule's section rebuilt as a
+  fifteen-branch union input. Testing an *existing* rule therefore means mapping its output
+  union back into an input union — more machinery than it answers, now that `rules` lists what
+  each rule does and `alteration` says which messages one touched.
 
 ### Not covered
 
@@ -123,7 +130,7 @@ Verified against the live schema on 2026-07-30, recorded so it is not re-researc
 - Workflows — list, get, create, update, delete, toggle, test and run (reached the SDK 2026-07-21)
 - Certificates — export the CA as PKCS#12, import, regenerate (2026-07-23)
 - DNS upstream resolvers and DNS rewrites
-- WebSocket replay sessions and entries (`ReplaySessionWs` / `ReplayEntryWs`), new in Caido 0.57
+- Sending or editing WebSocket messages, and WS replay sessions (`ReplaySessionWs`); reading streams is wrapped
 - Hosted-file upload and rename; plugin installation
 - `createRequest`, `deleteFindings`, and project create/rename/delete
 - Instance settings, which carry AI provider API keys — deliberately out of scope

@@ -316,6 +316,24 @@ interesting goes straight to `get` or `compare`.
 Paths come from each entry's own request. A directory's path ends in `/`, which is how
 `/admin` and `/admin/` stay distinct — they are two different entries.
 
+## WebSocket and SSE
+
+```bash
+node "$CAIDO_CLIENT" streams --limit 20 [--scope "Target Corp"]
+node "$CAIDO_CLIENT" stream-messages <stream-id> --limit 50
+node "$CAIDO_CLIENT" stream-messages <stream-id> --raw --max-body-chars 500
+```
+
+Streams are not requests, so `search` and `recent` do not see them at all: an application
+that talks over WebSocket is invisible until you look here. `streams` lists them with host,
+path, protocol (`WS` or `SSE`) and direction; `stream-messages` lists a stream's frames with
+direction (`CLIENT` or `SERVER`), format, length and `alteration`.
+
+Payloads only appear with `--raw`, truncated by the usual output flags. Binary frames report
+their size instead of being decoded.
+
+Reading is wrapped; sending or editing WebSocket messages is not — see the skill README.
+
 ## Match-and-replace rules
 
 ```bash

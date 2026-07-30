@@ -131,6 +131,10 @@ findings the memory of what has already been proven, across sessions.
 `compare` instead of two full responses, `--json-compact` on list output, `download` when
 bytes need to reach disk rather than the transcript.
 
+**WebSocket traffic is invisible to `search`.** Streams are not requests. If the target talks
+over WebSocket or SSE, `streams` lists them and `stream-messages <id> --raw` shows the frames;
+nothing else in this client will surface them.
+
 **Find traffic you sent from outside the client** by bounding the search rather than guessing:
 note the newest id first (`recent --limit 1`), then `search 'row.id.gt:<id>'` afterwards. When
 even that is ambiguous, send a unique marker header and search for it — which doubles as the
@@ -216,9 +220,9 @@ Everything else — the field table, operators, dates, presets — is in `refere
 ## Not wrapped
 
 Caido exposes surface this client does not: workflows, certificate export/import, DNS
-upstreams and rewrites, WebSocket streams and replay, hosted-file upload, plugin
-installation, upstream proxy chaining, backups, `createRequest`, `deleteFindings`, project
-create/rename/delete, and driving the intercept queue. Do not reach for a command from that
+upstreams and rewrites, sending or editing WebSocket messages (reading them is wrapped),
+hosted-file upload, plugin installation, upstream proxy chaining, backups, `createRequest`,
+`deleteFindings`, project create/rename/delete, and driving the intercept queue. Do not reach for a command from that
 list; `client/README.md` records what was checked and why each one is out.
 
 ## Errors
