@@ -12,9 +12,24 @@ No `npm install` is required.
 
 ## Upstream parity
 
-This skill mirrors Caido's official [`caido/skills`](https://github.com/caido/skills) `caido-mode` (v3.0.1) — same commands, same flags, and the same `~/.claude/config/secrets.json` format, so the two are interchangeable. The only structural difference is the implementation: the official client is built on the `@caido/sdk-client` npm package, while this one is a single dependency-free `.mjs`. On top of full parity it adds byte-safe `download`, short aliases, `--no-save-pat`, and refresh-token rotation.
+This skill mirrors Caido's official [`caido/skills`](https://github.com/caido/skills) `caido-mode` (v3.0.1) — same command names, same flags, same output field shapes, and the same `~/.claude/config/secrets.json` path and format, so the two are drop-in interchangeable. Nothing upstream ships is missing here.
 
 Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-06-08 and pinned to `@caido/sdk-client` ^0.4.0, and every command it ships is present here. The embedded GraphQL is field-checked against the canonical documents in [`caido/sdk-js`](https://github.com/caido/sdk-js) — `@caido/sdk-client` 0.5.0, generated from `@caido/schema-proxy` 0.57.0 — with no drift, since every document change between 0.4.0 and 0.5.0 was additive. Details in [`client/README.md`](client/README.md#compatibility).
+
+### What differs
+
+| | This skill | Upstream `caido-mode` v3.0.1 |
+|---|---|---|
+| Implementation | one dependency-free `.mjs` on Node's built-in `fetch` and `WebSocket` | `@caido/sdk-client` + `graphql-tag` + `tsx`, installed from npm |
+| Auditability | exact client revision pinned by submodule commit hash | dependency range (`^0.4.0`) resolved at install time |
+| Binary bodies | `download` writes raw bytes — `--out`, `--request`/`--response`, `--raw`, `--body-only`, `--force` | no such command; bodies only come back through JSON text |
+| Expired access token | refresh token is stored, rotated on the first auth failure, and the call retried | refresh token is never stored; the run exits telling you to re-run `setup <pat>` |
+| PAT on disk | `setup --no-save-pat` keeps it out of `secrets.json` | `setup` always writes the PAT |
+| Auth env vars | `CAIDO_ACCESS_TOKEN`, `CAIDO_INSTANCE_URL`, `CAIDO_URL`, `CAIDO_PAT` | `CAIDO_URL`, `CAIDO_PAT` |
+| Schema versions | GraphQL forked in-client at the 0.57.0 threshold (`*_V056` / `*_V057`) | delegated to the SDK's own transport forks |
+| Older Node | optional `ws` fallback below Node 22.4 | handled by the SDK's transport |
+
+The last two rows are a trade rather than a win: tracking Caido's schema by hand is what the missing dependencies cost, which is why the verification note above carries a date.
 
 ## Why
 
