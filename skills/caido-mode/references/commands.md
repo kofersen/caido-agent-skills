@@ -293,6 +293,22 @@ node "$CAIDO_CLIENT" hosted-files
 node "$CAIDO_CLIENT" delete-hosted-file <file-id>
 ```
 
+## Match-and-replace rules
+
+```bash
+node "$CAIDO_CLIENT" rules
+```
+
+Read-only. Lists every rule collection with each rule's name, whether it is enabled, which
+part of the message it rewrites, its HTTPQL condition (empty means it applies to everything),
+and for header and body rules the matcher and the replacement. Other sections report which
+part they rewrite without the substitution detail.
+
+Rules apply to traffic this client never issued, so their effects otherwise read as the
+target's behaviour. Requests and responses a rule changed carry `alteration: TAMPER`; a
+message edited by hand carries `edited: true`. Neither field appears when there is nothing to
+report.
+
 ## Intercept
 
 ```bash

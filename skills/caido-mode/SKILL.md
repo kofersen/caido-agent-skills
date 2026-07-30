@@ -49,6 +49,7 @@ Set a short path once per session:
 
 ```bash
 export CAIDO_CLIENT="$PWD/client/caido-client.mjs"    # in this repo: skills/caido-mode/client/caido-client.mjs
+alias caido='node "$CAIDO_CLIENT"'                    # optional, and much easier to read back
 ```
 
 ## The loop
@@ -75,6 +76,24 @@ node "$CAIDO_CLIENT" create-finding <request-id> --title "IDOR on /api/user/:id"
 node "$CAIDO_CLIENT" evidence <request-id> --out reports/<slug>/evidence
 ```
 
+## What the proxy did to your traffic
+
+Caido's match-and-replace rules rewrite traffic the client never issued — browser `fetch`,
+raw sockets, other tools — and their effects look exactly like the target's own behaviour.
+This has produced confidently wrong conclusions more than once.
+
+**Run `rules` at the start of an engagement.** It lists every match-and-replace rule, what it
+matches and what it substitutes. Zero rules is a useful answer: it removes the explanation.
+
+**Check `alteration` on anything surprising.** `get`, `search` and the send commands report
+`alteration: TAMPER` when a rule changed that message and `edited: true` when it was modified
+by hand. Absent means neither. A response body that mentions a host you did not expect, on a
+request carrying `alteration: TAMPER`, is the proxy talking, not the target.
+
+**Setting a header the proxy also sets gives you a doubled value, not an override.**
+`x-foo: a` plus a rule adding `x-foo: b` goes out as `x-foo: a, b`, and origins reject that in
+ways that look like a ban. This one sentence is worth the whole section.
+
 ## Engagement discipline
 
 **Probe read-only first.** Establish the boundary with a GET or an unchanged replay before
@@ -88,6 +107,12 @@ touch billing, subscriptions or another party's data to make a point.
 "blocked" or "protected" is a wrong verdict that outlives the request. Pace with
 `--delay <ms>` (or `CAIDO_MIN_INTERVAL_MS`) for the whole engagement; batch sends already
 pace themselves and stop on the first signal.
+
+**Re-request any single-path anomaly slowly before believing it.** A sweep run too fast
+produces lone 403s and short truncated bodies on individual paths, which is the exact shape of
+an access-control carve-out and is not one. Rate-induced artefacts disappear on a slow
+re-request; real findings do not. Check for 429s and `error code: 1015` bodies elsewhere in
+the same run — that is the tell.
 
 **Stay in scope.** Define the engagement's scope in Caido once, then search with
 `--scope <name>` so history from other work never enters the picture.
@@ -104,6 +129,13 @@ findings the memory of what has already been proven, across sessions.
 **Keep raw bodies out of context.** `--headers-only` and `--compact` while exploring,
 `compare` instead of two full responses, `--json-compact` on list output, `download` when
 bytes need to reach disk rather than the transcript.
+
+**Find traffic you sent from outside the client** by bounding the search rather than guessing:
+note the newest id first (`recent --limit 1`), then `search 'row.id.gt:<id>'` afterwards. When
+even that is ambiguous, send a unique marker header and search for it — which doubles as the
+check that the browser or script is actually going through Caido at all. The skill's claim
+that everything goes through Caido holds for what this client sends, and is silently false for
+anything not configured to use the proxy.
 
 ## Commands used in nearly every session
 
