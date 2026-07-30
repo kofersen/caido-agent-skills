@@ -12,7 +12,9 @@ No `npm install` is required.
 
 ## Upstream parity
 
-This skill mirrors Caido's official [`caido/skills`](https://github.com/caido/skills) `caido-mode` (v3.0.1) — same commands, same flags, and the same `~/.claude/config/secrets.json` format, so the two are interchangeable. The only structural difference is the implementation: the official client is built on the `@caido/sdk-client` npm package, while this one is a single dependency-free `.mjs`. On top of full parity it adds byte-safe `download`, short aliases, `--no-save-pat`, and refresh-token rotation. The embedded GraphQL is verified current against [`caido/sdk-js`](https://github.com/caido/sdk-js) for Caido v0.57.1.
+This skill mirrors Caido's official [`caido/skills`](https://github.com/caido/skills) `caido-mode` (v3.0.1) — same commands, same flags, and the same `~/.claude/config/secrets.json` format, so the two are interchangeable. The only structural difference is the implementation: the official client is built on the `@caido/sdk-client` npm package, while this one is a single dependency-free `.mjs`. On top of full parity it adds byte-safe `download`, short aliases, `--no-save-pat`, and refresh-token rotation.
+
+Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-06-08 and pinned to `@caido/sdk-client` ^0.4.0, and every command it ships is present here. The embedded GraphQL is field-checked against the canonical documents in [`caido/sdk-js`](https://github.com/caido/sdk-js) — `@caido/sdk-client` 0.5.0, generated from `@caido/schema-proxy` 0.57.0 — with no drift, since every document change between 0.4.0 and 0.5.0 was additive. Details in [`client/README.md`](client/README.md#compatibility).
 
 ## Why
 
@@ -74,6 +76,18 @@ node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 | Hosted Files | `hosted-files`, `delete-hosted-file` |
 | Intercept | `intercept-status`, `intercept-enable`, `intercept-disable` |
 | Info | `viewer`, `plugins`, `health`, `setup`, `auth-status` |
+
+### Not covered
+
+`@caido/sdk-client` 0.5.0 exposes surface this client does not wrap, recorded here so it does not have to be rediscovered:
+
+- Workflows — list, get, create, update, delete, toggle, test and run (reached the SDK 2026-07-21)
+- Certificates — export the CA as PKCS#12, import, regenerate (2026-07-23)
+- DNS upstream resolvers and DNS rewrites
+- WebSocket replay sessions and entries (`ReplaySessionWs` / `ReplayEntryWs`), new in Caido 0.57
+- Hosted-file upload and rename; plugin installation
+- `createRequest`, `deleteFindings`, and project create/rename/delete
+- Instance settings, which carry AI provider API keys — deliberately out of scope
 
 ## Usage
 

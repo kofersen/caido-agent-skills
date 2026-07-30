@@ -538,6 +538,8 @@ All commands use direct GraphQL/REST operations against Caido:
 | Intercept/plugin/automate GraphQL | intercept, plugins, create-automate-session, fuzz |
 | REST `/health` | health |
 
+Not wrapped, so do not reach for them: workflows, certificate export/import, DNS upstreams and rewrites, WebSocket replay sessions, hosted-file upload, plugin installation, `createRequest`, `deleteFindings`, project create/rename/delete. `client/README.md` records why.
+
 ---
 
 ## Workflow Examples
