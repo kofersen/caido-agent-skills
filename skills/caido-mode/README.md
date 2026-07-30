@@ -23,6 +23,11 @@ Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-
 | Implementation | one dependency-free `.mjs` on Node's built-in `fetch` and `WebSocket` | `@caido/sdk-client` + `graphql-tag` + `tsx`, installed from npm |
 | Auditability | exact client revision pinned by submodule commit hash | dependency range (`^0.4.0`) resolved at install time |
 | Binary bodies | `download` writes raw bytes — `--out`, `--request`/`--response`, `--raw`, `--body-only`, `--force` | no such command; bodies only come back through JSON text |
+| Comparing two results | `compare` reports status, length, header deltas and the differing body region, decided on bytes | not available; read both responses and judge |
+| Report evidence | `evidence` writes `request.http`, `response.http`, `curl.sh`, `meta.json` at `0600` | assemble by hand from `download` and `export-curl` |
+| Repeating one request | `edit --values` sends one per value in a single session, a row each, stopping on backoff | one invocation per value |
+| Rate discipline | `--delay` paces sends per host across processes; 429, challenge, 503 and `Retry-After` are reported as `backoff` | no pacing, no backoff signal |
+| Scope | `search --scope` filters history by a Caido scope | not exposed |
 | Expired access token | refresh token is stored, rotated on the first auth failure, and the call retried | refresh token is never stored; the run exits telling you to re-run `setup <pat>` |
 | PAT on disk | `setup --no-save-pat` keeps it out of `secrets.json` | `setup` always writes the PAT |
 | Auth env vars | `CAIDO_ACCESS_TOKEN`, `CAIDO_INSTANCE_URL`, `CAIDO_URL`, `CAIDO_PAT` | `CAIDO_URL`, `CAIDO_PAT` |
@@ -76,8 +81,9 @@ node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 
 | Category | Commands |
 |----------|----------|
-| HTTP History | `search`, `recent`, `get`, `get-response`, `download`, `export-curl` |
-| Edit & Replay | `edit`, `replay`, `send-raw`, `edit-session` |
+| HTTP History | `search` (with `--scope`), `recent`, `get`, `get-response`, `download`, `export-curl` |
+| Analysis & Evidence | `compare`, `evidence` |
+| Edit & Replay | `edit` (with `--values` for batch sends), `replay`, `send-raw`, `edit-session` |
 | Replay Tab Lookup | `get-session`, `replay-entries`, `session-entries` |
 | Sessions | `create-session`, `rename-session`, `move-session`, `replay-sessions`, `delete-sessions` |
 | Collections | `replay-collections`, `create-collection`, `rename-collection`, `delete-collection` |
@@ -245,7 +251,9 @@ HTTPQL does not have a `NOT` operator. Use negated operators such as `ne`, `ncon
 
 ## Agent Integration
 
-Agents should read `SKILL.md` for the full workflow, command catalog, and operational guidance. This README is the human-facing quick reference.
+Agents read `SKILL.md` for the loop and the engagement rules, and go to `references/` for
+depth: `references/commands.md` is the full command and flag catalog, `references/httpql.md`
+the query language. This README is the human-facing quick reference.
 
 ## Architecture
 

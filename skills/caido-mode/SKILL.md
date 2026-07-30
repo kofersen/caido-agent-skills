@@ -1,641 +1,204 @@
 ---
 name: caido-mode
-description: Dependency-free Caido CLI integration for Codex and Claude. Search HTTP history, replay/edit requests, manage scopes/filters/environments, create findings, export curl commands, byte-safe downloads, and control intercept through a pinned caido-headless-client submodule.
+description: Dependency-free Caido CLI integration for Codex and Claude. Search HTTP history, replay/edit requests, compare responses, manage scopes/filters/environments, create findings, export evidence and curl commands, byte-safe downloads, and control intercept through a pinned caido-headless-client submodule.
 tags: [worker]
 ---
 
 # Caido Mode Skill
 
-## Overview
+Drive a running Caido instance from the terminal: search history, replay and edit requests
+with their auth intact, compare responses, record findings, and export evidence. Every
+request goes through Caido, so it lands in the UI with full replay context for later
+analysis.
 
-Full-coverage Caido skill backed by a pinned dependency-free client submodule. The client uses Node's built-in `fetch` and `WebSocket`. Covers:
+The client is a single dependency-free Node ESM file, pinned as a submodule at `client/`.
 
-- **HTTP History** - Search, retrieve, replay, edit requests with HTTPQL
-- **Replay & Sessions** - Sessions, collections, entries, fuzzing
-- **Scopes** - Create and manage testing scopes (allowlist/denylist patterns)
-- **Filter Presets** - Save and reuse HTTPQL filter presets
-- **Environments** - Store test variables (victim IDs, tokens, etc.)
-- **Findings** - Create, list, update security findings
-- **Tasks** - Monitor and cancel background tasks
-- **Projects** - Switch between testing projects
-- **Hosted Files** - Manage files served by Caido
-- **Intercept** - Enable/disable request interception programmatically
-- **Plugins** - List installed plugins
-- **Export** - Convert requests to curl commands for PoCs
-- **Health** - Check Caido instance status
+- Full command and flag catalog: `references/commands.md`
+- HTTPQL fields, operators and examples: `references/httpql.md`
 
-All traffic goes through Caido, so it appears in the UI for further analysis.
+## Why edit, not copy-paste
 
-### Why This Model?
+Session cookies, JWTs and CSRF tokens are routinely 1-2 KB and fragile. So the loop is never
+"build a request from scratch":
 
-**Cookies and auth tokens can be huge** - session cookies, JWTs, CSRF tokens can easily be 1-2KB. Rather than manually copy-pasting:
+1. Find an organic request in history that already carries valid auth.
+2. `edit` only what the test changes — path, method, header, body.
+3. Send it through Caido, where the response arrives with the context preserved.
 
-1. **Find an organic request** in Caido's HTTP history that already has valid auth
-2. **Use `edit` to modify just what you need** (path, method, body) while keeping all auth headers intact
-3. **Send it** - response comes back with full context preserved
+`replay --raw` and `send-raw` exist for the cases where nothing suitable is in history.
+Reach for `edit` first.
 
-## Authentication Setup
+## Setup
 
-### Setup (One-Time)
-
-1. Open [Dashboard -> Developer -> Personal Access Tokens](https://docs.caido.io/dashboard/guides/create_pat.html)
-2. Create a new token
-3. Run setup from the installed skill directory:
+Create a PAT in [Dashboard → Developer → Personal Access Tokens](https://docs.caido.io/dashboard/guides/create_pat.html), then, from the installed skill directory:
 
 ```bash
-cd ~/.codex/skills/caido-mode
-node client/caido-client.mjs setup <your-pat> <caido-url> --no-save-pat
-
-# Non-default Caido instance
-node client/caido-client.mjs setup <pat> http://192.168.1.100:8080 --no-save-pat
-
-# Or set env var instead
-export CAIDO_PAT=caido_xxxxx
-```
-
-The `setup` command starts Caido's device-code flow, auto-approves it with the PAT, then saves the cached access token and refresh token to `~/.claude/config/secrets.json`. For compatibility it stores the PAT too; add `--no-save-pat` to avoid persisting the PAT.
-
-### Check Status
-
-```bash
+cd ~/.claude/skills/caido-mode        # Codex: ~/.codex/skills/caido-mode
+node client/caido-client.mjs setup <pat> <caido-url> --no-save-pat
 node client/caido-client.mjs auth-status
 ```
 
-### How Auth Works
+`--no-save-pat` keeps the PAT off disk; the cached access and refresh tokens go to
+`~/.claude/config/secrets.json`, and the refresh token is rotated automatically, so an
+unattended run survives token expiry.
 
-The CLI uses Caido's device code flow directly. It starts the local auth flow through Caido GraphQL, uses the PAT against Caido Cloud to approve the device code, then receives an access token + refresh token through a local GraphQL WebSocket subscription.
+Auth resolution: `CAIDO_ACCESS_TOKEN` → valid cached token → refresh token → `CAIDO_PAT` →
+stored PAT → an error telling you to run `setup`.
 
-Auth resolution: `CAIDO_ACCESS_TOKEN` env var -> valid cached access token -> refresh token -> `CAIDO_PAT` env var -> `secrets.json` PAT -> error with setup instructions
-
-## CLI Tool
-
-Use the `caido-headless-client` submodule located at `client/` inside this skill. From an installed Codex or Claude skill directory, run `node client/caido-client.mjs ...`. In this repository, run `node skills/caido-mode/client/caido-client.mjs ...`. All commands output JSON.
-
-For the examples below, set a short path once:
+Set a short path once per session:
 
 ```bash
-export CAIDO_CLIENT="$PWD/client/caido-client.mjs"
+export CAIDO_CLIENT="$PWD/client/caido-client.mjs"    # in this repo: skills/caido-mode/client/caido-client.mjs
 ```
 
----
-
-## HTTP History & Testing Commands
-
-### search - Search HTTP history with HTTPQL
+## The loop
 
 ```bash
-node "$CAIDO_CLIENT" search 'req.method.eq:"POST" AND resp.code.eq:200'
-node "$CAIDO_CLIENT" search 'req.host.cont:"api"' --limit 50
-node "$CAIDO_CLIENT" search 'req.host.cont:"api"' --desc --limit 10
-node "$CAIDO_CLIENT" search 'req.path.cont:"/admin"' --ids-only
-node "$CAIDO_CLIENT" search 'resp.raw.cont:"password"' --after <cursor>
-```
-
-### recent - Get recent requests
-
-```bash
-node "$CAIDO_CLIENT" recent
-node "$CAIDO_CLIENT" recent --limit 50
-```
-
-### get / get-response - Retrieve full details
-
-```bash
-node "$CAIDO_CLIENT" get <request-id>
-node "$CAIDO_CLIENT" get <request-id> --headers-only
-node "$CAIDO_CLIENT" get-response <request-id>
-node "$CAIDO_CLIENT" get-response <request-id> --compact
-node "$CAIDO_CLIENT" download <request-id> --out response-body.bin
-node "$CAIDO_CLIENT" download <request-id> --response --raw --out response.http
-node "$CAIDO_CLIENT" download <request-id> --request --raw --out request.http
-```
-
-`download` is byte-safe and should be used when the body may be binary. By default it saves the response body only. Add `--raw` to save the full raw HTTP message including headers, `--request` to save the request instead of the response, and `--force` to overwrite an existing file.
-
-### edit - Edit and replay (KEY FEATURE)
-
-Modifies an existing request while preserving all cookies/auth headers:
-
-```bash
-# Change path (IDOR testing)
-node "$CAIDO_CLIENT" edit <id> --path /api/user/999
-
-# Change method and add body
-node "$CAIDO_CLIENT" edit <id> --method POST --body '{"admin":true}'
-
-# Add/remove headers
-node "$CAIDO_CLIENT" edit <id> --set-header "X-Forwarded-For: 127.0.0.1"
-node "$CAIDO_CLIENT" edit <id> --remove-header "X-CSRF-Token"
-
-# Find/replace text anywhere in request
-node "$CAIDO_CLIENT" edit <id> --replace "user123:::user456"
-
-# Combine multiple edits
-node "$CAIDO_CLIENT" edit <id> --method PUT --path /api/admin --body '{"role":"admin"}' --compact
-
-# Reuse an existing replay tab/session for repeated probes
-node "$CAIDO_CLIENT" edit <id> --path /api/user/1001 --session <session-id> --compact
-```
-
-| Option | Description |
-|--------|-------------|
-| `--method <METHOD>` | Change HTTP method |
-| `--path <path>` | Change request path |
-| `--set-header <Name: Value>` | Add or replace a header (repeatable) |
-| `--remove-header <Name>` | Remove a header (repeatable) |
-| `--body <content>` | Set request body (auto-updates Content-Length) |
-| `--replace <from>:::<to>` | Find/replace text anywhere in request (repeatable) |
-| `--session <id>` | Reuse an existing replay session instead of creating a new tab |
-| `--collection <id>` | Put a newly created replay session in a collection |
-| `--sni <host>` | Override TLS SNI |
-| `--connect-host <host>` | Connect to a different host while preserving the HTTP request |
-| `--connect-port <port>` | Connect to a different port |
-| `--connect-tls` / `--connect-no-tls` | Force TLS/plaintext for the connection |
-
-### replay / send-raw - Send requests
-
-```bash
-# Replay as-is
-node "$CAIDO_CLIENT" replay <request-id>
-
-# Replay with custom raw
-node "$CAIDO_CLIENT" replay <id> --raw "GET /modified HTTP/1.1\r\nHost: example.com\r\n\r\n"
-
-# Send completely custom request
-node "$CAIDO_CLIENT" send-raw --host example.com --port 443 --tls --raw "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-node "$CAIDO_CLIENT" send-raw --host example.com --raw @request.txt --name "G /"
-cat request.txt | node "$CAIDO_CLIENT" send-raw --host example.com --raw -
-
-# Connect elsewhere while preserving the request Host/SNI you need
-node "$CAIDO_CLIENT" replay <id> --connect-host 10.0.0.5 --connect-port 8443 --sni example.com
-```
-
-`--raw` accepts a string with `\r\n` escapes, `@file` to read from disk, or `-` to read from stdin.
-
-### export-curl - Convert to curl for PoCs
-
-```bash
-node "$CAIDO_CLIENT" export-curl <request-id>
-```
-
-Outputs a ready-to-use curl command with all headers and body.
-
----
-
-## Replay Tab Lookup
-
-Use these when a Caido replay tab is already open and you want to work from its active entry directly.
-
-```bash
-node "$CAIDO_CLIENT" get-session <session-id-or-name> --compact
-node "$CAIDO_CLIENT" replay-entries <session-id-or-name> --limit 20
-node "$CAIDO_CLIENT" replay-entries <session-id-or-name> --raw --compact
-node "$CAIDO_CLIENT" edit-session <session-id-or-name> --body '{"test":true}' --compact
-```
-
-`session-entries` is accepted as an alias for `replay-entries`.
-
----
-
-## Replay Sessions & Collections
-
-### Sessions
-
-```bash
-# Create replay session from an existing request
-node "$CAIDO_CLIENT" create-session <request-id>
-node "$CAIDO_CLIENT" create-session <request-id> --collection <collection-id>
-
-# ALWAYS rename sessions for easy identification in Caido UI
-node "$CAIDO_CLIENT" rename-session <session-id> "idor-user-profile"
-
-# List all replay sessions
-node "$CAIDO_CLIENT" replay-sessions
-node "$CAIDO_CLIENT" replay-sessions --limit 50
-
-# Move sessions between collections
-node "$CAIDO_CLIENT" move-session <session-id> <collection-id>
-
-# Delete replay sessions
-node "$CAIDO_CLIENT" delete-sessions <session-id-1>,<session-id-2>
-```
-
-### Collections
-
-Organize replay sessions into collections:
-
-```bash
-# List replay collections
-node "$CAIDO_CLIENT" replay-collections
-node "$CAIDO_CLIENT" replay-collections --limit 50
-
-# Create a collection
-node "$CAIDO_CLIENT" create-collection "IDOR Testing"
-
-# Rename a collection
-node "$CAIDO_CLIENT" rename-collection <collection-id> "Auth Bypass Tests"
-
-# Delete a collection
-node "$CAIDO_CLIENT" delete-collection <collection-id>
-```
-
-### Fuzzing
-
-```bash
-# Create automate session for fuzzing
-node "$CAIDO_CLIENT" create-automate-session <request-id>
-
-# Start fuzzing (configure payloads and markers in Caido UI first)
-node "$CAIDO_CLIENT" fuzz <session-id>
-```
-
----
-
-## Scope Management
-
-Define what's in scope for your testing. Uses glob patterns.
-
-```bash
-# List all scopes
-node "$CAIDO_CLIENT" scopes
-
-# Create scope with allowlist and denylist
-node "$CAIDO_CLIENT" create-scope "Target Corp" --allow "*.target.com,*.target.io" --deny "*.cdn.target.com"
-
-# Update scope
-node "$CAIDO_CLIENT" update-scope <scope-id> --allow "*.target.com,*.api.target.com"
-
-# Delete scope
-node "$CAIDO_CLIENT" delete-scope <scope-id>
-```
-
-**Glob patterns:** `*.example.com` matches any subdomain of example.com.
-
----
-
-## Filter Presets
-
-Save frequently used HTTPQL queries as named presets.
-
-```bash
-# List saved filters
-node "$CAIDO_CLIENT" filters
-
-# Create filter preset
-node "$CAIDO_CLIENT" create-filter "API Errors" --query 'req.path.cont:"/api/" AND resp.code.gte:400'
-node "$CAIDO_CLIENT" create-filter "Auth Endpoints" --query 'req.path.regex:"/(login|auth|oauth)/"' --alias "auth"
-
-# Update filter
-node "$CAIDO_CLIENT" update-filter <filter-id> --query 'req.path.cont:"/api/" AND resp.code.gte:500'
-
-# Delete filter
-node "$CAIDO_CLIENT" delete-filter <filter-id>
-```
-
----
-
-## Environment Variables
-
-Store testing variables that persist across sessions. Great for IDOR testing with multiple user IDs.
-
-```bash
-# List environments
-node "$CAIDO_CLIENT" envs
-
-# Create environment
-node "$CAIDO_CLIENT" create-env "IDOR-Test"
-
-# Set variables
-node "$CAIDO_CLIENT" env-set <env-id> victim_user_id "user_456"
-node "$CAIDO_CLIENT" env-set <env-id> attacker_token "eyJhbG..."
-
-# Select active environment
-node "$CAIDO_CLIENT" select-env <env-id>
-
-# Deselect environment
-node "$CAIDO_CLIENT" select-env
-
-# Delete environment
-node "$CAIDO_CLIENT" delete-env <env-id>
-```
-
----
-
-## Findings
-
-Create, list, and update security findings. Shows up in Caido's Findings tab.
-
-```bash
-# List all findings
-node "$CAIDO_CLIENT" findings
-node "$CAIDO_CLIENT" findings --limit 50
-
-# Get a specific finding
-node "$CAIDO_CLIENT" get-finding <finding-id>
-
-# Create finding linked to a request
-node "$CAIDO_CLIENT" create-finding <request-id> \
-  --title "IDOR in user profile endpoint" \
-  --description "Can access other users' profiles by changing ID parameter" \
-  --reporter "rez0"
-
-# With deduplication key (prevents duplicates)
-node "$CAIDO_CLIENT" create-finding <request-id> \
-  --title "Auth bypass on /admin" \
-  --dedupe-key "admin-auth-bypass"
-
-# Update finding
-node "$CAIDO_CLIENT" update-finding <finding-id> \
-  --title "Updated title" \
-  --description "Updated description"
-```
-
----
-
-## Tasks
-
-Monitor and cancel background tasks (imports, exports, etc.).
-
-```bash
-# List all tasks
-node "$CAIDO_CLIENT" tasks
-
-# Cancel a running task
-node "$CAIDO_CLIENT" cancel-task <task-id>
-```
-
----
-
-## Project Management
-
-```bash
-# List all projects
-node "$CAIDO_CLIENT" projects
-
-# Switch active project
-node "$CAIDO_CLIENT" select-project <project-id>
-```
-
----
-
-## Hosted Files
-
-```bash
-# List hosted files
-node "$CAIDO_CLIENT" hosted-files
-
-# Delete hosted file
-node "$CAIDO_CLIENT" delete-hosted-file <file-id>
-```
-
----
-
-## Intercept Control
-
-```bash
-# Check intercept status
-node "$CAIDO_CLIENT" intercept-status
-
-# Enable/disable interception
-node "$CAIDO_CLIENT" intercept-enable
-node "$CAIDO_CLIENT" intercept-disable
-```
-
----
-
-## Info, Health & Plugins
-
-```bash
-# Current user info
-node "$CAIDO_CLIENT" viewer
-
-# List installed plugins
-node "$CAIDO_CLIENT" plugins
-
-# Check Caido instance health (version, ready state)
+# 1. Confirm the instance and the credentials
 node "$CAIDO_CLIENT" health
+node "$CAIDO_CLIENT" recent --limit 1
+
+# 2. Find an authenticated request, inside the engagement's scope
+node "$CAIDO_CLIENT" search 'req.path.cont:"/api/user"' --scope "Target Corp" --limit 10
+
+# 3. Read only what you need
+node "$CAIDO_CLIENT" get <request-id> --headers-only
+
+# 4. Change one thing and send it
+node "$CAIDO_CLIENT" edit <request-id> --path /api/user/999 --compact
+
+# 5. Ask what actually differs, instead of reading both responses
+node "$CAIDO_CLIENT" compare <original-id> <replayed-id>
+
+# 6. Record it, then export what a report needs
+node "$CAIDO_CLIENT" create-finding <request-id> --title "IDOR on /api/user/:id" --dedupe-key "target-idor-user-profile"
+node "$CAIDO_CLIENT" evidence <request-id> --out reports/<slug>/evidence
 ```
 
----
+## Engagement discipline
 
-## Output Control
+**Probe read-only first.** Establish the boundary with a GET or an unchanged replay before
+sending anything that writes. When a mutating step is the only way to prove impact, do the
+smallest version of it, and say in the writeup what was deliberately not run — unexplained
+restraint reads as a gap in the evidence, attributed restraint reads as discipline. Never
+touch billing, subscriptions or another party's data to make a point.
 
-Works with `get`, `get-response`, `replay`, `edit`, `send-raw`:
+**Treat backoff as a stop, not a result.** Sends report a `backoff` object for
+`rate-limited`, `challenge`, `service-unavailable` or `retry-after`. A 429 written down as
+"blocked" or "protected" is a wrong verdict that outlives the request. Pace with
+`--delay <ms>` (or `CAIDO_MIN_INTERVAL_MS`) for the whole engagement; batch sends already
+pace themselves and stop on the first signal.
 
-| Flag | Description |
-|------|-------------|
-| `--max-body <n>` | Max response body lines (default: 200, 0=unlimited) |
-| `--max-body-chars <n>` | Max body chars (default: 5000, 0=unlimited) |
-| `--no-request` | Skip request raw in output |
-| `--headers-only` | Only HTTP headers, no body |
-| `--compact` | Shorthand: `--no-request --max-body 50 --max-body-chars 5000` |
+**Stay in scope.** Define the engagement's scope in Caido once, then search with
+`--scope <name>` so history from other work never enters the picture.
 
----
+**One project per engagement** (`projects`, `select-project`), so traffic does not mix and
+deleting an engagement's data later is one action.
 
-## HTTPQL Reference
+**Name every replay session** after what it tests — `rename-session <id> "idor-user-profile"`
+— because the UI is where a human picks this up afterwards.
 
-Caido's query language for searching HTTP history.
+**Reuse dedupe keys.** `create-finding --dedupe-key <program>-<class>-<endpoint>` makes
+findings the memory of what has already been proven, across sessions.
 
-**CRITICAL**: String values MUST be quoted. Integer values are NOT quoted.
+**Keep raw bodies out of context.** `--headers-only` and `--compact` while exploring,
+`compare` instead of two full responses, `--json-compact` on list output, `download` when
+bytes need to reach disk rather than the transcript.
 
-**CRITICAL**: HTTPQL has NO `NOT` operator. Never write `NOT expr`. Use the negated operator variant instead:
-- `ncont` (not contains), `nlike` (not like), `nregex` (not regex), `ne` (not equals)
-- Wrong: `NOT req.path.cont:"/admin"`
-- Right: `req.path.ncont:"/admin"`
+## Commands used in nearly every session
 
-### Namespaces and Fields
+```bash
+# History
+node "$CAIDO_CLIENT" search '<httpql>' --scope <name> --limit 10 [--ids-only] [--desc]
+node "$CAIDO_CLIENT" get <id> [--headers-only|--compact]
+node "$CAIDO_CLIENT" get-response <id> --compact
 
-| Namespace | Field | Type | Description |
-|-----------|-------|------|-------------|
-| `req` | `ext` | string | File extension (includes `.`) |
-| `req` | `host` | string | Hostname |
-| `req` | `method` | string | HTTP method (uppercase) |
-| `req` | `path` | string | URL path |
-| `req` | `query` | string | Query string |
-| `req` | `raw` | string | Full raw request |
-| `req` | `port` | int | Port number |
-| `req` | `len` | int | Request body length |
-| `req` | `created_at` | date | Creation timestamp |
-| `req` | `tls` | bool | Is HTTPS |
-| `resp` | `raw` | string | Full raw response |
-| `resp` | `code` | int | Status code |
-| `resp` | `len` | int | Response body length |
-| `resp` | `roundtrip` | int | Roundtrip time (ms) |
-| `row` | `id` | int | Request ID |
-| `source` | - | special | `"intercept"`, `"replay"`, `"automate"`, `"workflow"` |
-| `preset` | - | special | Filter preset reference |
+# Send
+node "$CAIDO_CLIENT" edit <id> --path /new --set-header "X-Test: 1" --session <id> --compact
+node "$CAIDO_CLIENT" replay <id> --compact
+node "$CAIDO_CLIENT" send-raw --host example.com --raw @request.txt
 
-### Operators
+# Understand the result
+node "$CAIDO_CLIENT" compare <id-a> <id-b>
 
-**String:** `eq`, `ne`, `cont`, `ncont`, `like`, `nlike`, `regex`, `nregex`
-**Integer:** `eq`, `ne`, `gt`, `gte`, `lt`, `lte`
-**Boolean:** `eq`, `ne`
-**Logical:** `AND`, `OR`, parentheses for grouping
+# Record and export
+node "$CAIDO_CLIENT" create-finding <id> --title "..." --dedupe-key "..."
+node "$CAIDO_CLIENT" evidence <id> --out <dir>
+node "$CAIDO_CLIENT" export-curl <id>
+node "$CAIDO_CLIENT" download <id> --response --raw --out response.http
+```
 
-### Example Queries
+### compare
+
+Two requests in, one answer out: same status, same length, which headers moved, and the
+differing region of the body. Minified bodies are handled by windowing around the first
+differing character rather than printing the head, and equality is decided on bytes, so two
+binary bodies are never called identical because both decoded to `U+FFFD`.
+
+```bash
+node "$CAIDO_CLIENT" compare 1201 1202                      # responses
+node "$CAIDO_CLIENT" compare 1201 1202 --request            # request side
+node "$CAIDO_CLIENT" compare 1201 1202 --all-headers        # include date/cf-ray/etc
+```
+
+This is the authz primitive: send the same request as two identities, compare, and the answer
+is a few lines instead of two full responses.
+
+### Batch sends
+
+```bash
+node "$CAIDO_CLIENT" edit <id> --path '/api/user/{}' --values 1-100
+node "$CAIDO_CLIENT" edit <id> --replace 'ORIG:::{}' --values @ids.txt --delay 500
+```
+
+One request per value through a single replay session, one row each — value, status, length,
+request id. `{}` marks where the value goes. Paces at 250ms unless `--delay` says otherwise,
+caps at 1000 values, and stops at the first backoff signal or send error, reporting `stopped`
+and the rows completed. For wordlist-driven fuzzing use Caido's Automate instead.
+
+### evidence
+
+Writes `request.http`, `response.http`, `curl.sh` and `meta.json` into a directory and prints
+the manifest — the shape a report needs. `--finding <id>` starts from a finding instead of a
+request id. Files are `0600` because they carry cookies and authorization headers.
+`request.http` and `response.http` are the stored bytes; `curl.sh` is a convenience and is not
+byte-exact.
+
+## HTTPQL, the parts that bite
+
+**Quote strings, not integers.** `req.method.eq:"POST" AND resp.code.eq:200`
+
+**There is no `NOT`.** Use `ne`, `ncont`, `nlike`, `nregex`. `req.path.ncont:"/admin"`, never
+`NOT req.path.cont:"/admin"`.
 
 ```httpql
-# POST requests with 200 responses
-req.method.eq:"POST" AND resp.code.eq:200
-
-# API requests
 req.host.cont:"api" OR req.path.cont:"/api/"
-
-# Standalone string searches both req and resp
-"password" OR "secret" OR "api_key"
-
-# Error responses
 resp.code.gte:400 AND resp.code.lt:500
-
-# Large responses (potential data exposure)
-resp.len.gt:100000
-
-# Slow endpoints
-resp.roundtrip.gt:5000
-
-# Auth endpoints by regex
-req.path.regex:"/(login|auth|signin|oauth)/"
-
-# Replay/automate traffic only
-source:"replay" OR source:"automate"
-
-# Date filtering
-req.created_at.gt:"2024-01-01T00:00:00Z"
-
-# Exclude paths (use ncont, NOT doesn't exist)
-req.path.ncont:"/static"
-
-# Not equal
-req.method.ne:"OPTIONS"
-
-# Combine negations
-req.path.ncont:"/health" AND req.path.ncont:"/metrics"
+"password" OR "secret" OR "api_key"
+source:"replay"
 ```
 
----
+Everything else — the field table, operators, dates, presets — is in `references/httpql.md`.
 
-## Dependency-Free Architecture
+## Not wrapped
 
-This CLI is a single Node ESM entrypoint with no npm dependencies:
+`@caido/sdk-client` exposes surface this client does not: workflows, certificate
+export/import, DNS upstreams and rewrites, WebSocket replay sessions, hosted-file upload,
+plugin installation, `createRequest`, `deleteFindings`, project create/rename/delete. Do not
+reach for a command from that list; `client/README.md` records why.
 
-```
-client/caido-client.mjs  # Auth flow, GraphQL/REST transport, command dispatch, output formatting
-client/package.json      # Script metadata only; no dependencies
-client/README.md
-SKILL.md
-```
+## Errors
 
-### API Coverage
+| Symptom | Cause and fix |
+|---|---|
+| Auth errors | `auth-status`; re-run `setup <pat> <url> --no-save-pat` |
+| Connection refused | Caido is not running or the URL is wrong; `health` |
+| `InstanceNotReadyError` | Caido is still starting; wait and retry |
+| A send hangs for ~30s and returns no response | The target stalled the connection; the entry is recorded without a response |
 
-All commands use direct GraphQL/REST operations against Caido:
+Reads retry twice on transient transport failures. Mutations never retry — a resend would put
+a second request on the target.
 
-| API Area | Commands |
-|-----------|----------|
-| Request GraphQL | search, recent, get, get-response, download, export-curl |
-| Replay GraphQL + task subscription | replay, send-raw, edit, sessions, collections |
-| Findings GraphQL | findings, get-finding, create-finding, update-finding |
-| Management GraphQL | scopes, filters, environments, projects, hosted files, tasks |
-| Intercept/plugin/automate GraphQL | intercept, plugins, create-automate-session, fuzz |
-| REST `/health` | health |
+## Related
 
-Not wrapped, so do not reach for them: workflows, certificate export/import, DNS upstreams and rewrites, WebSocket replay sessions, hosted-file upload, plugin installation, `createRequest`, `deleteFindings`, project create/rename/delete. `client/README.md` records why.
-
----
-
-## Workflow Examples
-
-### 1. IDOR Testing (Primary Pattern)
-
-```bash
-# Find authenticated request
-node "$CAIDO_CLIENT" search 'req.path.cont:"/api/user"' --limit 10
-
-# Create scope
-node "$CAIDO_CLIENT" create-scope "IDOR-Test" --allow "*.target.com"
-
-# Create environment for test data
-node "$CAIDO_CLIENT" create-env "IDOR-Test"
-node "$CAIDO_CLIENT" env-set <env-id> victim_id "user_999"
-
-# Test IDOR by changing user ID
-node "$CAIDO_CLIENT" edit <request-id> --path /api/user/999
-
-# Mark as finding if it works
-node "$CAIDO_CLIENT" create-finding <request-id> --title "IDOR on /api/user/:id"
-
-# Export curl for PoC
-node "$CAIDO_CLIENT" export-curl <request-id>
-```
-
-### 2. Privilege Escalation Testing
-
-```bash
-node "$CAIDO_CLIENT" search 'req.path.cont:"/admin"' --limit 10
-node "$CAIDO_CLIENT" edit <id> --path /api/admin/users --method GET
-node "$CAIDO_CLIENT" edit <id> --method POST --body '{"role":"admin"}'
-```
-
-### 3. Header Bypass Testing
-
-```bash
-node "$CAIDO_CLIENT" edit <id> --set-header "X-Forwarded-For: 127.0.0.1"
-node "$CAIDO_CLIENT" edit <id> --set-header "X-Original-URL: /admin"
-node "$CAIDO_CLIENT" edit <id> --remove-header "X-CSRF-Token"
-```
-
-### 4. Fuzzing with Automate
-
-```bash
-node "$CAIDO_CLIENT" create-automate-session <request-id>
-# Configure payload markers and wordlists in Caido UI
-node "$CAIDO_CLIENT" fuzz <session-id>
-```
-
-### 5. Filter + Analyze Pattern
-
-```bash
-# Save useful filters
-node "$CAIDO_CLIENT" create-filter "API 4xx" --query 'req.path.cont:"/api/" AND resp.code.gte:400 AND resp.code.lt:500'
-node "$CAIDO_CLIENT" create-filter "Large Responses" --query 'resp.len.gt:100000'
-node "$CAIDO_CLIENT" create-filter "Sensitive Data" --query '"password" OR "secret" OR "api_key" OR "token"'
-
-# Quick search using preset alias
-node "$CAIDO_CLIENT" search 'preset:"API 4xx"' --limit 20
-```
-
----
-
-## Instructions for Claude
-
-1. **PREFER `edit` OVER `replay --raw`** - preserves cookies/auth automatically
-2. **Workflow**: Search -> find request with valid auth -> use that ID for all tests via `edit`
-3. **Don't dump raw requests into context** - use `--compact` or `--headers-only` when exploring
-4. **Always check auth first**: `health` to verify connection, then `recent --limit 1`
-5. **ALWAYS NAME REPLAY TABS**: `rename-session <id> "idor-user-profile"`
-6. **Create findings** for anything interesting - they show up in Caido's Findings tab
-7. **Use `export-curl`** when building PoCs for reports
-8. **Create filter presets** for recurring searches to save typing
-9. **Use environments** to store test data (victim IDs, tokens, etc.)
-10. **Output is JSON** - parse response fields as needed
-11. **NEVER use `NOT` in HTTPQL** - it doesn't exist. Use negated operators: `ne`, `ncont`, `nlike`, `nregex`
-
-## Performance & Context Optimization
-
-- `search`/`recent` omit `raw` field (~200 bytes per request, safe for 100+)
-- `get` fetches `raw` (~5-20KB per request, fetch only what you need)
-- Use `--limit` aggressively (start with 5-10)
-- Use `--compact` flag for quick exploration
-- Filter server-side with HTTPQL, not client-side
-
-## Error Handling
-
-- **Auth errors**: Run `node "$CAIDO_CLIENT" auth-status` to check, re-setup with `node "$CAIDO_CLIENT" setup <pat>`
-- **Connection refused**: Caido not running -> `node "$CAIDO_CLIENT" health`
-- **InstanceNotReadyError**: Caido is starting up, wait and retry
-
-## Related Skills
-
-- `caido-plugin-dev` - For building Caido plugins (backend + frontend)
-- `spider` - Crawling with Katana (uses Caido as proxy)
-- `website-fuzzing` - Remote ffuf fuzzing on hunt6
-- `JsAnalyzer` - JS analysis for traffic-discovered files
+- `vulnerability-reports` turns the evidence bundle into a submission.
