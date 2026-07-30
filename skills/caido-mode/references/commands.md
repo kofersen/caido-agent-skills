@@ -320,8 +320,9 @@ Paths come from each entry's own request. A directory's path ends in `/`, which 
 
 ```bash
 node "$CAIDO_CLIENT" streams --limit 20 [--scope "Target Corp"]
+node "$CAIDO_CLIENT" streams --filter 'stream.path.cont:"/socket"'
 node "$CAIDO_CLIENT" stream-messages <stream-id> --limit 50
-node "$CAIDO_CLIENT" stream-messages <stream-id> --raw --max-body-chars 500
+node "$CAIDO_CLIENT" stream-messages <stream-id> --filter 'ws.raw.cont:"token"' --raw
 ```
 
 Streams are not requests, so `search` and `recent` do not see them at all: an application
@@ -333,6 +334,31 @@ Payloads only appear with `--raw`, truncated by the usual output flags. Binary f
 their size instead of being decoded.
 
 Reading is wrapped; sending or editing WebSocket messages is not — see the skill README.
+
+### StreamQL
+
+`--filter` takes StreamQL, not HTTPQL. Two namespaces:
+
+| Namespace | Fields |
+|---|---|
+| `stream` | `host`, `path`, `port`, `protocol`, `source`, `tls` |
+| `ws` | `raw`, `direction`, `format`, `len`, `created_at` |
+
+Operators match HTTPQL (`eq`, `ne`, `cont`, `ncont`, `regex`, `gt`, `lt`, …) and `AND` / `OR`
+combine them. `ws.*` only applies to `stream-messages`, `stream.*` to `streams`.
+
+```streamql
+ws.raw.cont:"password"
+ws.direction.eq:"client" AND ws.len.gt:1000
+ws.raw.regex:"token=[a-f0-9]+"
+stream.host.cont:"api" AND stream.tls.eq:true
+stream.source.eq:"intercept"
+```
+
+**Filter values are lower case even though the output is upper case.** A frame reported as
+`"direction": "CLIENT"` matches `ws.direction.eq:"client"` and matches nothing at all as
+`"CLIENT"`; same for `format` (`"text"`, `"binary"`, `"close"`, `"ping"`, `"pong"`) and for
+`protocol` (`"ws"`, `"sse"`). Booleans go unquoted: `stream.tls.eq:true`, never `"true"`.
 
 ## Match-and-replace rules
 

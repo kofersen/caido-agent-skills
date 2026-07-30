@@ -29,7 +29,7 @@ Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-
 | Rate discipline | `--delay` paces sends per host across processes; 429, challenge, 503 and `Retry-After` are reported as `backoff` | no pacing, no backoff signal |
 | Scope | `search --scope` filters history by a Caido scope | not exposed |
 | Coverage | `sitemap` gives Caido's deduplicated tree of what has been seen on a host | not exposed |
-| WebSocket | `streams` and `stream-messages` read WS and SSE traffic, which `search` cannot see | not exposed |
+| WebSocket | `streams` and `stream-messages` read WS and SSE traffic with StreamQL filtering, which `search` cannot see | not exposed |
 | Proxy rewrites | `rules` lists match-and-replace; every request and response reports `alteration` and `edited` | neither is exposed, so a rule's effect reads as the target's behaviour |
 | Expired access token | refresh token is stored, rotated on the first auth failure, and the call retried | refresh token is never stored; the run exits telling you to re-run `setup <pat>` |
 | PAT on disk | `setup --no-save-pat` keeps it out of `secrets.json` | `setup` always writes the PAT |

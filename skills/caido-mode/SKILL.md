@@ -132,8 +132,11 @@ findings the memory of what has already been proven, across sessions.
 bytes need to reach disk rather than the transcript.
 
 **WebSocket traffic is invisible to `search`.** Streams are not requests. If the target talks
-over WebSocket or SSE, `streams` lists them and `stream-messages <id> --raw` shows the frames;
-nothing else in this client will surface them.
+over WebSocket or SSE, `streams` lists them and `stream-messages <id>` shows the frames;
+nothing else in this client will surface them. Both take `--filter` in StreamQL, not HTTPQL —
+`ws.raw.cont:"token"` searches payloads, `stream.path.cont:"/socket"` finds the stream. Filter
+values are lower case even though the output is upper case: a frame shown as
+`"direction": "CLIENT"` matches `ws.direction.eq:"client"` and nothing at all as `"CLIENT"`.
 
 **Find traffic you sent from outside the client** by bounding the search rather than guessing:
 note the newest id first (`recent --limit 1`), then `search 'row.id.gt:<id>'` afterwards. When
