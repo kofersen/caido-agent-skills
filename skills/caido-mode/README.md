@@ -100,6 +100,22 @@ node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 | Intercept | `intercept-status`, `intercept-enable`, `intercept-disable` |
 | Info | `viewer`, `plugins`, `health`, `setup`, `auth-status` |
 
+### Checked and left out
+
+Verified against the live schema on 2026-07-30, recorded so it is not re-researched:
+
+- **Bulk request export** (`startExportRequestsTask`, JSON/CSV with raw) returns
+  `PermissionDeniedUserError` on a Basic plan with no entitlements. It is a paid feature, so a
+  command for it would fail every time here.
+- **Findings export** (`exportFindings` → a signed `downloadUri`) works, but returns what
+  `findings` already gives as JSON. Redundant.
+- **Intercept queue** (`interceptMessages(kind:)` plus forward and drop) works and is empty
+  unless something is held. Left out because interception is an interactive workflow: an agent
+  forwarding or dropping traffic would act on the operator's own live session. Note that
+  `interceptEntries` is intercept *history*, which `search 'source:"intercept"'` already covers.
+- **Response screenshots** (`renderRequest` → an `Image`) fail with `RENDER_FAILED / INTERNAL`
+  on this host even with Caido's browser installed, so nothing was built on top of it.
+
 ### Not covered
 
 `@caido/sdk-client` 0.5.0 exposes surface this client does not wrap, recorded here so it does not have to be rediscovered:

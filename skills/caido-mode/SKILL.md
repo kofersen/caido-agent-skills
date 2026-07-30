@@ -59,7 +59,8 @@ alias caido='node "$CAIDO_CLIENT"'                    # optional, and much easie
 node "$CAIDO_CLIENT" health
 node "$CAIDO_CLIENT" recent --limit 1
 
-# 2. Find an authenticated request, inside the engagement's scope
+# 2. See what is known on the target, then find an authenticated request
+node "$CAIDO_CLIENT" sitemap target.com --all --limit 100
 node "$CAIDO_CLIENT" search 'req.path.cont:"/api/user"' --scope "Target Corp" --limit 10
 
 # 3. Read only what you need
@@ -214,10 +215,11 @@ Everything else — the field table, operators, dates, presets — is in `refere
 
 ## Not wrapped
 
-`@caido/sdk-client` exposes surface this client does not: workflows, certificate
-export/import, DNS upstreams and rewrites, WebSocket replay sessions, hosted-file upload,
-plugin installation, `createRequest`, `deleteFindings`, project create/rename/delete. Do not
-reach for a command from that list; `client/README.md` records why.
+Caido exposes surface this client does not: workflows, certificate export/import, DNS
+upstreams and rewrites, WebSocket streams and replay, hosted-file upload, plugin
+installation, upstream proxy chaining, backups, `createRequest`, `deleteFindings`, project
+create/rename/delete, and driving the intercept queue. Do not reach for a command from that
+list; `client/README.md` records what was checked and why each one is out.
 
 ## Errors
 

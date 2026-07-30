@@ -293,6 +293,29 @@ node "$CAIDO_CLIENT" hosted-files
 node "$CAIDO_CLIENT" delete-hosted-file <file-id>
 ```
 
+## Sitemap
+
+```bash
+node "$CAIDO_CLIENT" sitemap                                  # root domains
+node "$CAIDO_CLIENT" sitemap --scope "Target Corp" --limit 50
+node "$CAIDO_CLIENT" sitemap target.com                       # direct children
+node "$CAIDO_CLIENT" sitemap target.com --all --limit 500      # whole subtree
+```
+
+Caido's deduplicated view of what has been seen on a host — the coverage question without
+paging through history. Entries carry their path, kind (`DOMAIN`, `DIRECTORY`, `REQUEST`,
+`REQUEST_QUERY`, `REQUEST_BODY`), method and the request id behind them, so anything
+interesting goes straight to `get` or `compare`.
+
+| Flag | Description |
+|---|---|
+| `--scope <id-or-name>` | Only roots inside that scope |
+| `--all` | Whole subtree instead of direct children |
+| `--limit <n>` | Entries returned, default 200; `truncated` says when there were more |
+
+Paths come from each entry's own request. A directory's path ends in `/`, which is how
+`/admin` and `/admin/` stay distinct — they are two different entries.
+
 ## Match-and-replace rules
 
 ```bash
