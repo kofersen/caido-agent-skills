@@ -423,7 +423,7 @@ node "$CAIDO_CLIENT" intercept-disable
 node "$CAIDO_CLIENT" health        # version and ready state
 node "$CAIDO_CLIENT" viewer        # current user
 node "$CAIDO_CLIENT" plugins
-node "$CAIDO_CLIENT" auth-status
+node "$CAIDO_CLIENT" auth-status     # also reports the selected project
 node "$CAIDO_CLIENT" setup <pat> <url> --no-save-pat
 ```
 

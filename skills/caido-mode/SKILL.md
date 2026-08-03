@@ -127,7 +127,10 @@ the same run — that is the tell.
 `--scope <name>` so history from other work never enters the picture.
 
 **One project per engagement** (`projects`, `select-project`), so traffic does not mix and
-deleting an engagement's data later is one action.
+deleting an engagement's data later is one action. History, findings, sitemap, streams and
+match-and-replace rules are all project data: the same command answers differently depending
+on which project is selected, and `auth-status` says which one that is. An empty `rules` or a
+short history usually means the wrong project, not a clean slate.
 
 **Name every replay session** after what it tests — `rename-session <id> "idor-user-profile"`
 — because the UI is where a human picks this up afterwards.
