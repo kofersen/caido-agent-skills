@@ -30,7 +30,7 @@ Checked 2026-07-30: upstream `caido-mode` is still v3.0.1, untouched since 2026-
 | Scope | `search --scope` filters history by a Caido scope | not exposed |
 | Coverage | `sitemap` gives Caido's deduplicated tree of what has been seen on a host | not exposed |
 | WebSocket | `streams` and `stream-messages` read WS and SSE traffic with StreamQL filtering, which `search` cannot see | not exposed |
-| Proxy rewrites | `rules` lists match-and-replace; every request and response reports `alteration` and `edited` | neither is exposed, so a rule's effect reads as the target's behaviour |
+| Proxy rewrites | full match-and-replace management, and every request and response reports `alteration` and `edited` | neither is exposed, so a rule's effect reads as the target's behaviour |
 | Expired access token | refresh token is stored, rotated on the first auth failure, and the call retried | refresh token is never stored; the run exits telling you to re-run `setup <pat>` |
 | PAT on disk | `setup --no-save-pat` keeps it out of `secrets.json` | `setup` always writes the PAT |
 | Auth env vars | `CAIDO_ACCESS_TOKEN`, `CAIDO_INSTANCE_URL`, `CAIDO_URL`, `CAIDO_PAT` | `CAIDO_URL`, `CAIDO_PAT` |
@@ -99,7 +99,7 @@ node client/caido-client.mjs setup <pat> http://localhost:8080 --no-save-pat
 | Tasks | `tasks`, `cancel-task` |
 | Projects | `projects`, `select-project` |
 | Hosted Files | `hosted-files`, `delete-hosted-file` |
-| Proxy rules | `rules` (read-only listing of match-and-replace) |
+| Proxy rules | `rules`, `create-rule`, `update-rule`, `toggle-rule`, `rename-rule`, `move-rule`, `delete-rule`, plus `*-rule-collection` |
 | Intercept | `intercept-status`, `intercept-enable`, `intercept-disable` |
 | Info | `viewer`, `plugins`, `health`, `setup`, `auth-status` |
 
@@ -134,8 +134,6 @@ Verified against the live schema on 2026-07-30, recorded so it is not re-researc
 - Hosted-file upload and rename; plugin installation
 - `createRequest`, `deleteFindings`, and project create/rename/delete
 - Instance settings, which carry AI provider API keys — deliberately out of scope
-- Writing match-and-replace rules: `rules` lists them, but creating, editing, enabling or
-  deleting one stays in the UI, where a human decides what rewrites their traffic
 
 ## Usage
 

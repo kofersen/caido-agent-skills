@@ -84,7 +84,15 @@ raw sockets, other tools — and their effects look exactly like the target's ow
 This has produced confidently wrong conclusions more than once.
 
 **Run `rules` at the start of an engagement.** It lists every match-and-replace rule, what it
-matches and what it substitutes. Zero rules is a useful answer: it removes the explanation.
+matches, what it substitutes and which `sources` it applies to — a rule listing `REPLAY`
+rewrites this client's own sends too. Zero rules is a useful answer: it removes the
+explanation.
+
+Rules can also be written: `create-rule`, `update-rule`, `toggle-rule`, `rename-rule`,
+`move-rule`, `delete-rule` and the collection equivalents. Reach for it when a program
+requires an attribution header on all traffic, and remember what one costs — a rule rewrites
+every message matching its condition, including traffic this client never sent, for as long as
+it is enabled. New rules start disabled.
 
 **Check `alteration` on anything surprising.** `get`, `search` and the send commands report
 `alteration: TAMPER` when a rule changed that message and `edited: true` when it was modified

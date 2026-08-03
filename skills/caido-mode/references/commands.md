@@ -374,7 +374,40 @@ part they rewrite without the substitution detail.
 Rules apply to traffic this client never issued, so their effects otherwise read as the
 target's behaviour. Requests and responses a rule changed carry `alteration: TAMPER`; a
 message edited by hand carries `edited: true`. Neither field appears when there is nothing to
-report.
+report. Each rule also reports its `sources` — a rule listing `REPLAY` rewrites this client's
+own sends, not only the browser's traffic.
+
+### Writing rules
+
+```bash
+node "$CAIDO_CLIENT" create-rule "h1-attribution" --section request-header \
+  --op add --match-name "X-HackerOne" --replace "username" --condition 'req.host.cont:"target.com"'
+node "$CAIDO_CLIENT" toggle-rule <id> --on
+node "$CAIDO_CLIENT" update-rule <id> --section request-header --op update --match-name "X-HackerOne" --replace "other"
+node "$CAIDO_CLIENT" rename-rule <id> "new name"
+node "$CAIDO_CLIENT" move-rule <id> <collection-id>
+node "$CAIDO_CLIENT" delete-rule <id>
+
+node "$CAIDO_CLIENT" create-rule-collection "Engagement rules"
+node "$CAIDO_CLIENT" rename-rule-collection <id> "New name"
+node "$CAIDO_CLIENT" delete-rule-collection <id>
+```
+
+| Flag | Description |
+|---|---|
+| `--section <s>` | Required. `request-method`, `request-path`, `request-query`, `request-body`, `request-first-line`, `request-header`, `request-all`, `request-sni`, `response-header`, `response-body`, `response-status-code`, `response-first-line`, `response-all`, `ws-upstream`, `ws-downstream` |
+| `--op <o>` | `raw` (default) everywhere; `add`, `update` and `remove` only on the two header sections |
+| `--match-name <h>` | Header name, for `add`, `update` and `remove` |
+| `--match <v>` / `--match-regex <re>` / `--match-full` | What a `raw` operation matches |
+| `--replace <v>` | The replacement, required except for `remove` |
+| `--condition <q>` | HTTPQL that limits where the rule applies, StreamQL for the `ws-*` sections. Omitted means everywhere |
+| `--sources <a,b>` | Which traffic the rule rewrites: `intercept`, `replay`, `automate`, `workflow`, `plugin`, `import`, `sample`. Defaults to `intercept,replay` |
+| `--collection <id>` | Defaults to the first collection |
+
+**New rules start disabled**; `toggle-rule <id> --on` switches one on. `update-rule` keeps the
+name, sources and condition it already had unless you pass new ones, and `delete-rule` echoes
+what the rule did — removing a rewrite changes traffic as much as adding one, and nothing else
+will remember it.
 
 ## Intercept
 
